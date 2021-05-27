@@ -1,3 +1,22 @@
+'''
+
+Opens .obf files and saves individual stacks as .tiffs.
+
+The OBF file format originates from the Department of NanoBiophotonics
+of the Max Planck Institute for Biophysical Chemistry in Göttingen, Germany. A specification can be found at
+https://github.com/AbberiorInstruments/ImspectorDocs/blob/master/docs/fileformat.rst
+
+Opening and converting to nunpy array is done via the obf support package by Jan Keller-Findeisen (https://github.com/jkfindeisen)
+https://github.com/jkfindeisen/python-mix/tree/main/obf
+[Pure Python read only support for OBF files.  This implementation is similar to the File and Stack API of specpy
+(https://pypi.org/project/specpy/). Can also read MSR files (the OBF part of it).]
+
+Include Jan's obf_support.py in your project and import it into the code with "import obf_support".
+
+Sarah Schweighofer, May 2021, Göttingen, Max Planck Institute for Biophysical Chemistry
+'''
+
+
 import obf_support
 from tkinter import filedialog
 import os
