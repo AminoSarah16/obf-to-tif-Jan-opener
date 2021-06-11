@@ -22,6 +22,8 @@ from tkinter import filedialog
 import os
 import numpy
 from PIL import Image
+from cv2_rolling_ball import subtract_background_rolling_ball
+from scipy import ndimage
 
 
 def main():
@@ -61,10 +63,26 @@ def main():
             array = stack.data  # this is where Jan does the magic of converting obf to numpy
             array = numpy.transpose(array)  # need to transpose to have in the original orientation
             stackname = stack.name
-            enhanced_contrast = enhance_contrast(array, stackname)
 
             #save the tiff images unprocessed
             save_array_with_pillow(array, result_path, filename, stackname)
+            #
+            # #smooth with 3x3 mean filter (=uniform filter = averaging) like in ImageJ's rolling ball background subtraction
+            # # structuring elemnt of 3x3 pixels = radius 1 in FIJI, but size=3 in ndimage
+            # mean_array = ndimage.uniform_filter(array, size=3)
+            #
+            # #save the smoothed tiff images
+            # save_array_with_pillow(mean_array, result_path, filename, stackname + "mean")
+
+            # background subtraction
+            img, background = subtract_background_rolling_ball(array.astype(numpy.uint8), 10, light_background=False, use_paraboloid=False, do_presmooth=True)  ##TODO: try paraboiloid false
+
+            save_array_with_pillow(img, result_path, filename, stackname + "img_without_background")
+            save_array_with_pillow(background, result_path, filename, stackname + "background")
+
+            # enhanced contrast
+            enhanced_contrast = enhance_contrast(array, stackname)
+
 
             #save the contrast enhanced images
             save_array_with_pillow(enhanced_contrast, result_path, filename, stackname + "contr-enh")

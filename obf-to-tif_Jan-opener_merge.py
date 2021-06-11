@@ -61,18 +61,33 @@ def main():
             array = stack.data  # this is where Jan does the magic of converting obf to numpy
             array = numpy.transpose(array)  # need to transpose to have in the original orientation
             stackname = stack.name
-            enhanced_contrast = enhance_contrast(array, stackname)
 
             #save the tiff images unprocessed
-            save_array_with_pillow(array, result_path, filename, stackname)
+            a = array * 1  ## dass ich hier das Array duplizieren muss und mal 1 nehmen, ist vollkommener Bullshit, aber auf dem originalen Array lässt er mich nicht rummanipulieren... :/
+            a[a>255] = 255
+            save_array_with_pillow(a, result_path, filename, stackname)
 
-            #save the contrast enhanced images
-            save_array_with_pillow(enhanced_contrast, result_path, filename, stackname + "contr-enh")
-            #
-            # #save an image which was just contrast enhanced by multiplying with 2
-            # if "Bax" in stackname:
-            #     contrast_x = array * 2.5
-            #     save_array_with_pillow(contrast_x, result_path, filename, stackname + "contrx2,5")
+            if "Bax" in stackname:
+                Bax_enhanced = enhance_contrast(array, stackname)
+                # save the contrast enhanced images
+                save_array_with_pillow(Bax_enhanced, result_path, filename, stackname + "contr-enh")
+            if "Tom" in stackname:
+                Tom_enhanced = enhance_contrast(array, stackname)
+                # save the contrast enhanced images
+                save_array_with_pillow(Tom_enhanced, result_path, filename, stackname + "contr-enh")
+
+        #turn them to RGB; Bax in green (0, 255, 0) and Tom in magenta (255, 0, 255).
+        #However, opencv uses the format BGR!> B and R need to be set by Tom, and G by Bax
+        x = stack.shape[1]
+        y = stack.shape[0]
+        merged = numpy.zeros((x, y, 3)) #creates a blank canvas with 3 dimensions for every pixel
+        merged[:, :, 0] = Tom_enhanced
+        merged[:, :, 1] = Bax_enhanced
+        merged[:, :, 2] = Tom_enhanced
+
+        # merged = numpy.transpose(merged)  # need to transpose to have in the original orientation
+        save_array_with_pillow(merged, result_path, filename, stackname[0:0] + "merged")
+
 
 
 def save_array_with_pillow(array, result_path, filename, stackname):  ##TODO: add pixel size in metadata, so that when you open it in imageJ, it knows it automatically
@@ -88,15 +103,15 @@ def save_array_with_pillow(array, result_path, filename, stackname):  ##TODO: ad
 
 def enhance_contrast(numpy_array, stackname): ##TODO: is 255 really the right scale here?
     # Enhance contrast by stretching the histogram over the full range of 8-bit grayvalues
-    minimum_gray = numpy.amin(numpy_array)
-    maximum_gray = numpy.amax(numpy_array)
-    mean_gray = numpy.mean(numpy_array)
-    print("The {} channel has the following greyvalue range: {} - {}, with a mean of: {}.".format(stackname, str(minimum_gray), str(maximum_gray), str(mean_gray)))
-    lower2 = numpy.percentile(numpy_array, 0.2)
+    # minimum_gray = numpy.amin(numpy_array)
+    # maximum_gray = numpy.amax(numpy_array)
+    # mean_gray = numpy.mean(numpy_array)
+    # print("The {} channel has the following greyvalue range: {} - {}, with a mean of: {}.".format(stackname, str(minimum_gray), str(maximum_gray), str(mean_gray)))
+    # lower2 = numpy.percentile(numpy_array, 0.2)
     upper2 = numpy.percentile(numpy_array, 99.8)
-    print("0.2% of all the pixels have a value lower than {} and 0.2% of all the pixels have a value higher than {}".format(str(lower2), str(upper2)))
-    number_highest_value = numpy.count_nonzero(numpy_array == maximum_gray)
-    print("The pixel with the highest value({}) occurs {} times.".format(str(maximum_gray), str(number_highest_value)))
+    print("0.2% of all the pixels have a value higher than {}".format(str(upper2)))
+    # number_highest_value = numpy.count_nonzero(numpy_array == maximum_gray)
+    # print("The pixel with the highest value({}) occurs {} times.".format(str(maximum_gray), str(number_highest_value)))
     thresh = 255
     factor = thresh/upper2
     print(factor)
@@ -104,8 +119,7 @@ def enhance_contrast(numpy_array, stackname): ##TODO: is 255 really the right sc
 
     # Now the whole array has been multiplied in order to be nicely distributed over an 8-bit range (0-255)
     # however, some pixels will be above the threshold, and these need to be set to 255, otherwise weird artefacts can occur
-    above_threshold_indices = enhanced_contrast > thresh  # ich suche mir die Indices im Array, die über dem Threshold liegen
-    enhanced_contrast[above_threshold_indices] = thresh  # und setze die Intensitäten an diesen Stellen auf 255
+    enhanced_contrast[enhanced_contrast > 255] = 255  # ich suche mir die Pixel im Array, die über dem Threshold liegen und setze die Intensitäten an diesen Stellen auf 255
     return enhanced_contrast
 
 
