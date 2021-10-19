@@ -80,8 +80,8 @@ def main():
         #However, opencv uses the format BGR!> B and R need to be set by Tom, and G by Bax
         x = stack.shape[1]
         y = stack.shape[0]
-        merged = numpy.zeros((x, y, 3)) #creates a blank canvas with 3 dimensions for every pixel
-        merged[:, :, 0] = Tom_enhanced
+        merged = numpy.zeros((x, y, 3)) #creates a blank canvas with x number of pixels times y number of pixels with 3 values (BGR) for every pixel
+        merged[:, :, 0] = Tom_enhanced # sets all the pixels for B with the values from the Tom channel
         merged[:, :, 1] = Bax_enhanced
         merged[:, :, 2] = Tom_enhanced
 
@@ -103,6 +103,7 @@ def save_array_with_pillow(array, result_path, filename, stackname):  ##TODO: ad
 
 def enhance_contrast(numpy_array, stackname): ##TODO: is 255 really the right scale here?
     # Enhance contrast by stretching the histogram over the full range of 8-bit grayvalues
+    # takes the upper 0.2 % of pixels as the highest value, cause sometimes there are super bright single pixels
     # minimum_gray = numpy.amin(numpy_array)
     # maximum_gray = numpy.amax(numpy_array)
     # mean_gray = numpy.mean(numpy_array)
@@ -114,7 +115,7 @@ def enhance_contrast(numpy_array, stackname): ##TODO: is 255 really the right sc
     # print("The pixel with the highest value({}) occurs {} times.".format(str(maximum_gray), str(number_highest_value)))
     thresh = 255
     factor = thresh/upper2
-    print(factor)
+    print("The enhancement factor is: {}".format(str(factor)))
     enhanced_contrast = numpy_array * factor
 
     # Now the whole array has been multiplied in order to be nicely distributed over an 8-bit range (0-255)

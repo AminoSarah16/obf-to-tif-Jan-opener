@@ -1,6 +1,6 @@
 '''
 
-Opens .obf files and saves individual stacks as .tiffs.
+Opens .msr files and saves individual stacks as .tiffs.
 
 The OBF file format originates from the Department of NanoBiophotonics
 of the Max Planck Institute for Biophysical Chemistry in Göttingen, Germany. A specification can be found at
@@ -13,7 +13,7 @@ https://github.com/jkfindeisen/python-mix/tree/main/obf
 
 Include Jan's obf_support.py in your project and import it into the code with "import obf_support".
 
-Sarah Schweighofer, May 2021, Göttingen, Max Planck Institute for Biophysical Chemistry
+Sarah Schweighofer, Sept 2021, Göttingen, Max Planck Institute for Biophysical Chemistry
 '''
 
 
@@ -29,7 +29,7 @@ def main():
     root_path = filedialog.askdirectory()  # prompts user to choose directory. From tkinter
 
     # prints out the number of files in the selected folder with the .obf file format
-    file_format = ".obf"  # use msr-to-tif_Jan-opener for .msr fileformat
+    file_format = ".msr"
     filenames = [filename for filename in sorted(os.listdir(root_path)) if filename.endswith(file_format)]
     print("There are {} files with this format.".format(len(filenames)))
     if not filenames:  # pythonic for if a list is empty
@@ -59,6 +59,19 @@ def main():
         # now load all the wanted stacks, turn them into numpy arrays and get the exact name.
         for stack in wanted_stacks:
             array = stack.data  # this is where Jan does the magic of converting obf to numpy
+
+            # Dimensionnen von Imspector aus sind [T, Z, Y, X]
+            size = array.shape  # The shape attribute for numpy arrays returns the dimensions of the array. If Y has n rows and m columns, then Y.shape is (n,m). So Y.shape[0] is n
+            print('The numpy array of the channel has the following dimensions: {}'.format(size))
+
+            # wir wollen aber [X, Y, Z]
+            # 1) reduce to [Z, Y, X]
+            array = numpy.reshape(array, size[:2])  # TODO: make sure it also works for videos or stacks
+
+            # 3) just to visualize the dimensions again
+            size = array.shape
+            print('After transposing, the numpy array of the channel has the following dimensions: {}'.format(size))
+
             array = numpy.transpose(array)  # need to transpose to have in the original orientation
             stackname = stack.name
             enhanced_contrast = enhance_contrast(array, stackname)

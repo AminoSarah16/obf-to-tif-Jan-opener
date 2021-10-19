@@ -1,6 +1,8 @@
 '''
 
 Opens .obf files and saves individual stacks as .tiffs.
+Also stretches Histogram to 255 and applies rolling ball to Bax channel.
+Then merges the two channels in an RGB file.
 
 The OBF file format originates from the Department of NanoBiophotonics
 of the Max Planck Institute for Biophysical Chemistry in Göttingen, Germany. A specification can be found at
@@ -22,6 +24,7 @@ from tkinter import filedialog
 import os
 import numpy
 from PIL import Image
+from cv2_rolling_ball import subtract_background_rolling_ball
 
 
 def main():
@@ -29,13 +32,13 @@ def main():
     root_path = filedialog.askdirectory()  # prompts user to choose directory. From tkinter
 
     # prints out the number of files in the selected folder with the .obf file format
-    file_format = ".obf"  # use msr-to-tif_Jan-opener for .msr fileformat
+    file_format = ".obf"  ##TODO: make run with .msr  ##TODO: make contrast stretching
     filenames = [filename for filename in sorted(os.listdir(root_path)) if filename.endswith(file_format)]
     print("There are {} files with this format.".format(len(filenames)))
     if not filenames:  # pythonic for if a list is empty
         print("There are no files with this format.")
 
-    # ask user which what part in the name we are looking for:
+    # ask user which part in the name we are looking for:
     namepart = input("Please enter the namepart you are looking for - case-sensitive (eg STED, Confocal..). If all stacks are wanted press enter: ")
 
     # create a subfolder where the converted images would be saved
@@ -49,7 +52,7 @@ def main():
         file_path = os.path.join(root_path, filename)
         current_obf_file = obf_support.File(file_path) #this is where Jan does the magic of opening
 
-        #extract the stacks according o the defined name part
+        # extract the stacks according to the defined name part
         wanted_stacks = [stack for stack in current_obf_file.stacks if namepart in stack.name]
         print('The measurement contains {} {} channels.'.format(len(wanted_stacks), namepart))
 
@@ -61,20 +64,74 @@ def main():
             array = stack.data  # this is where Jan does the magic of converting obf to numpy
             array = numpy.transpose(array)  # need to transpose to have in the original orientation
             stackname = stack.name
-            enhanced_contrast = enhance_contrast(array, stackname)
 
             # save the tiff images unprocessed
             a = array * 1  ## dass ich hier das Array duplizieren muss und mal 1 nehmen, ist vollkommener Bullshit, aber auf dem originalen Array lässt er mich nicht rummanipulieren... :/
-            a[a > 255] = 255
+            a[a>255] = 255  # um komische Artefakte zu verhindern, falls Nummern über 255 entstehen beim stretchen
             save_array_with_pillow(a, result_path, filename, stackname)
 
-            #save the contrast enhanced images
-            save_array_with_pillow(enhanced_contrast, result_path, filename, stackname + "contr-enh")
-            #
-            # #save an image which was just contrast enhanced by multiplying with 2
-            # if "Bax" in stackname:
-            #     contrast_x = array * 2.5
-            #     save_array_with_pillow(contrast_x, result_path, filename, stackname + "contrx2,5")
+            if "Bax" in stackname:  ##TODO: make a function out of the rolling ball thingy
+                # enhance contrast
+                Bax_enhanced = enhance_contrast(array, stackname)
+                # save the contrast enhanced images
+                save_array_with_pillow(Bax_enhanced, result_path, filename, stackname + "contr-enh")
+
+                # background subtraction by rolling ball algorithm with 3x3 mean filter (=presmooth) and ball as structuring element
+                # ATTENTION: This takes forever (like 2 hours for one 60x60µm image), so if you just want to try the code, use the file without the rolling ball thing!!
+                Bax_img, Bax_background = subtract_background_rolling_ball(array.astype(numpy.uint8), 10, light_background=False, use_paraboloid=False, do_presmooth=True)
+                save_array_with_pillow(Bax_img, result_path, filename, stackname + "img_without_background")
+                save_array_with_pillow(Bax_background, result_path, filename, stackname + "background")
+                # enhance contrast
+                Bax_roll_enhanced = enhance_contrast(Bax_img, stackname)
+                # save the contrast enhanced images
+                save_array_with_pillow(Bax_roll_enhanced, result_path, filename, stackname + "img_without_background_contr-enh")
+
+            if "BaK" in stackname:
+                # enhance contrast
+                Bak_enhanced = enhance_contrast(array, stackname)
+                # save the contrast enhanced images
+                save_array_with_pillow(Bak_enhanced, result_path, filename, stackname + "contr-enh")
+
+                Bak_img, Bak_background = subtract_background_rolling_ball(array.astype(numpy.uint8), 10, light_background=False, use_paraboloid=False, do_presmooth=True)
+                save_array_with_pillow(Bak_img, result_path, filename, stackname + "img_without_background")
+                save_array_with_pillow(Bak_background, result_path, filename, stackname + "background")
+                # enhance contrast
+                Bak_roll_enhanced = enhance_contrast(Bak_img, stackname)
+                # save the contrast enhanced images
+                save_array_with_pillow(Bak_roll_enhanced, result_path, filename, stackname + "img_without_background_contr-enh")
+
+            if "Tom" in stackname:
+                # enhance contrast
+                Tom_enhanced = enhance_contrast(array, stackname)
+                # save the contrast enhanced images
+                save_array_with_pillow(Tom_enhanced, result_path, filename, stackname + "contr-enh")
+
+        # turn them to RGB; BaK in cyan (R:0, G:255, B:255), Bax in yellow (R:255, G:255, B:0) and Tom in magenta (R:255, G:0, B:255).
+        # B: by cyan (Bak) and magenta (Tom), G: by cyan (Bak) and yellow (Bax), R: by yellow (Bax) and magenta (Tom)
+        x = stack.shape[1]
+        y = stack.shape[0]
+        merged = numpy.zeros((x, y, 3)) # creates a blank canvas with x number of pixels times y number of pixels with 3 values (RGB) for every pixel
+
+        # create RGB of rollball images
+        # merged[:, :, 0] = Tom_enhanced
+        # merged[:, :, 1] = Bax_roll_enhanced
+        # merged[:, :, 2] = Bak_roll_enhanced
+        #
+        # save_array_with_pillow(merged, result_path, filename, stackname[0:0] + "mergedRGB")
+
+        #create merge without rollball
+        merged[:, :, 0] = Bax_enhanced/2 + Tom_enhanced/2 # R  # sets all the pixels for R with the values from the Bax and Tom channel
+        merged[:, :, 1] = Bax_enhanced/2 + Bak_enhanced/2 # G
+        merged[:, :, 2] = Tom_enhanced/2 + Bak_enhanced/2 # B
+
+        save_array_with_pillow(merged, result_path, filename, stackname[0:0] + "merged_CMY")
+
+        #create merge with roll ball
+        merged[:, :, 0] = Bax_roll_enhanced/2 + Tom_enhanced/2 # R  # sets all the pixels for B with the values from the Bax and Tom channel
+        merged[:, :, 1] = Bax_roll_enhanced/2 + Bak_roll_enhanced/2 # G
+        merged[:, :, 2] = Tom_enhanced/2 + Bak_roll_enhanced/2 # B
+
+        save_array_with_pillow(merged, result_path, filename, stackname[0:0] + "merged_img_without_background_CMY")
 
 
 def save_array_with_pillow(array, result_path, filename, stackname):  ##TODO: add pixel size in metadata, so that when you open it in imageJ, it knows it automatically
@@ -90,6 +147,7 @@ def save_array_with_pillow(array, result_path, filename, stackname):  ##TODO: ad
 
 def enhance_contrast(numpy_array, stackname): ##TODO: is 255 really the right scale here?
     # Enhance contrast by stretching the histogram over the full range of 8-bit grayvalues
+    # takes the upper 0.2 % of pixels as the highest value, cause sometimes there are super bright single pixels
     # minimum_gray = numpy.amin(numpy_array)
     # maximum_gray = numpy.amax(numpy_array)
     # mean_gray = numpy.mean(numpy_array)
@@ -101,7 +159,7 @@ def enhance_contrast(numpy_array, stackname): ##TODO: is 255 really the right sc
     # print("The pixel with the highest value({}) occurs {} times.".format(str(maximum_gray), str(number_highest_value)))
     thresh = 255
     factor = thresh/upper2
-    print("The enhancement factor is: {}".format(str(factor)))
+    print(factor)
     enhanced_contrast = numpy_array * factor
 
     # Now the whole array has been multiplied in order to be nicely distributed over an 8-bit range (0-255)

@@ -6,7 +6,7 @@ The OBF file format originates from the Department of NanoBiophotonics
 of the Max Planck Institute for Biophysical Chemistry in Göttingen, Germany. A specification can be found at
 https://github.com/AbberiorInstruments/ImspectorDocs/blob/master/docs/fileformat.rst
 
-Opening and converting to numpy array is done via the obf support package by Jan Keller-Findeisen (https://github.com/jkfindeisen)
+Opening and converting to nunpy array is done via the obf support package by Jan Keller-Findeisen (https://github.com/jkfindeisen)
 https://github.com/jkfindeisen/python-mix/tree/main/obf
 [Pure Python read only support for OBF files.  This implementation is similar to the File and Stack API of specpy
 (https://pypi.org/project/specpy/). Can also read MSR files (the OBF part of it).]
@@ -29,7 +29,7 @@ def main():
     root_path = filedialog.askdirectory()  # prompts user to choose directory. From tkinter
 
     # prints out the number of files in the selected folder with the .obf file format
-    file_format = ".obf"  # use msr-to-tif_Jan-opener for .msr fileformat
+    file_format = ".obf"  ##TODO: make run with .msr  ##TODO: make contrast stretching
     filenames = [filename for filename in sorted(os.listdir(root_path)) if filename.endswith(file_format)]
     print("There are {} files with this format.".format(len(filenames)))
     if not filenames:  # pythonic for if a list is empty
@@ -61,20 +61,43 @@ def main():
             array = stack.data  # this is where Jan does the magic of converting obf to numpy
             array = numpy.transpose(array)  # need to transpose to have in the original orientation
             stackname = stack.name
-            enhanced_contrast = enhance_contrast(array, stackname)
+            print(stackname)
 
-            # save the tiff images unprocessed
+            #save the tiff images unprocessed
             a = array * 1  ## dass ich hier das Array duplizieren muss und mal 1 nehmen, ist vollkommener Bullshit, aber auf dem originalen Array lässt er mich nicht rummanipulieren... :/
-            a[a > 255] = 255
+            a[a>255] = 255
             save_array_with_pillow(a, result_path, filename, stackname)
 
-            #save the contrast enhanced images
-            save_array_with_pillow(enhanced_contrast, result_path, filename, stackname + "contr-enh")
-            #
-            # #save an image which was just contrast enhanced by multiplying with 2
-            # if "Bax" in stackname:
-            #     contrast_x = array * 2.5
-            #     save_array_with_pillow(contrast_x, result_path, filename, stackname + "contrx2,5")
+            if "Bax" in stackname:
+                Bax_enhanced = enhance_contrast(array, stackname)
+                # save the contrast enhanced images
+                save_array_with_pillow(Bax_enhanced, result_path, filename, stackname + "contr-enh")
+            if "BaK" in stackname:
+                Bak_enhanced = enhance_contrast(array, stackname)
+                # save the contrast enhanced images
+                save_array_with_pillow(Bak_enhanced, result_path, filename, stackname + "contr-enh")
+            if "Tom" in stackname:
+                Tom_enhanced = enhance_contrast(array, stackname)
+                # save the contrast enhanced images
+                save_array_with_pillow(Tom_enhanced, result_path, filename, stackname + "contr-enh")
+
+        # turn them to RGB; Bax in cyan (R:0, G:255, B:255), Bak in yellow (R:255, G:255, B:0) and Tom in magenta (R:255, G:0, B:255).
+        # However, opencv uses the format BGR!> B: by cyan (Bax) and magenta (Tom), G: by cyan (Bax) and yellow (Bak), R: by yellow (Bak) and magenta (Tom)
+        x = stack.shape[1]
+        y = stack.shape[0]
+        merged = numpy.zeros((x, y, 3)) # creates a blank canvas with x number of pixels times y number of pixels with 3 values (RGB) for every pixel
+
+        merged[:, :, 0] = Tom_enhanced
+        merged[:, :, 1] = Bax_enhanced
+        merged[:, :, 2] = Bak_enhanced
+
+        save_array_with_pillow(merged, result_path, filename, stackname[0:0] + "mergedRGB")
+
+        merged[:, :, 0] = Bax_enhanced/2 + Tom_enhanced/2 # B  # sets all the pixels for B with the values from the Bax and Tom channel
+        merged[:, :, 1] = Bax_enhanced/2 + Bak_enhanced/2 # G
+        merged[:, :, 2] = Tom_enhanced/2 + Bak_enhanced/2 # R
+
+        save_array_with_pillow(merged, result_path, filename, stackname[0:0] + "mergedCMY")
 
 
 def save_array_with_pillow(array, result_path, filename, stackname):  ##TODO: add pixel size in metadata, so that when you open it in imageJ, it knows it automatically
@@ -90,6 +113,7 @@ def save_array_with_pillow(array, result_path, filename, stackname):  ##TODO: ad
 
 def enhance_contrast(numpy_array, stackname): ##TODO: is 255 really the right scale here?
     # Enhance contrast by stretching the histogram over the full range of 8-bit grayvalues
+    # takes the upper 0.2 % of pixels as the highest value, cause sometimes there are super bright single pixels
     # minimum_gray = numpy.amin(numpy_array)
     # maximum_gray = numpy.amax(numpy_array)
     # mean_gray = numpy.mean(numpy_array)
@@ -101,7 +125,7 @@ def enhance_contrast(numpy_array, stackname): ##TODO: is 255 really the right sc
     # print("The pixel with the highest value({}) occurs {} times.".format(str(maximum_gray), str(number_highest_value)))
     thresh = 255
     factor = thresh/upper2
-    print("The enhancement factor is: {}".format(str(factor)))
+    print(factor)
     enhanced_contrast = numpy_array * factor
 
     # Now the whole array has been multiplied in order to be nicely distributed over an 8-bit range (0-255)

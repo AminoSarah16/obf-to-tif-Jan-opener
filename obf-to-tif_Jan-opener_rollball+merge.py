@@ -38,7 +38,7 @@ def main():
     if not filenames:  # pythonic for if a list is empty
         print("There are no files with this format.")
 
-    # ask user which what part in the name we are looking for:
+    # ask user which part in the name we are looking for:
     namepart = input("Please enter the namepart you are looking for - case-sensitive (eg STED, Confocal..). If all stacks are wanted press enter: ")
 
     # create a subfolder where the converted images would be saved
@@ -52,7 +52,7 @@ def main():
         file_path = os.path.join(root_path, filename)
         current_obf_file = obf_support.File(file_path) #this is where Jan does the magic of opening
 
-        #extract the stacks according o the defined name part
+        # extract the stacks according to the defined name part
         wanted_stacks = [stack for stack in current_obf_file.stacks if namepart in stack.name]
         print('The measurement contains {} {} channels.'.format(len(wanted_stacks), namepart))
 
@@ -65,17 +65,18 @@ def main():
             array = numpy.transpose(array)  # need to transpose to have in the original orientation
             stackname = stack.name
 
-            #save the tiff images unprocessed
+            # save the tiff images unprocessed
             a = array * 1  ## dass ich hier das Array duplizieren muss und mal 1 nehmen, ist vollkommener Bullshit, aber auf dem originalen Array lässt er mich nicht rummanipulieren... :/
-            a[a>255] = 255
+            a[a>255] = 255  # um komische Artefakte zu verhindern, falls Nummern über 255 entstehen beim stretchen
             save_array_with_pillow(a, result_path, filename, stackname)
 
             if "Bax" in stackname:
                 # background subtraction by rolling ball algorithm with 3x3 mean filter (=presmooth) and ball as structuring element
+                # ATTENTION: This takes forever (like 2 hours for one 60x60µm image), so if you just want to try the code, use the file without the rolling ball thing!!
                 img, background = subtract_background_rolling_ball(array.astype(numpy.uint8), 10, light_background=False, use_paraboloid=False, do_presmooth=True)
                 save_array_with_pillow(img, result_path, filename, stackname + "img_without_background")
                 save_array_with_pillow(background, result_path, filename, stackname + "background")
-                #enhance contrast
+                # enhance contrast
                 Bax_enhanced = enhance_contrast(img, stackname)
                 # save the contrast enhanced images
                 save_array_with_pillow(Bax_enhanced, result_path, filename, stackname + "contr-enh")
@@ -112,6 +113,7 @@ def save_array_with_pillow(array, result_path, filename, stackname):  ##TODO: ad
 
 def enhance_contrast(numpy_array, stackname): ##TODO: is 255 really the right scale here?
     # Enhance contrast by stretching the histogram over the full range of 8-bit grayvalues
+    # takes the upper 0.2 % of pixels as the highest value, cause sometimes there are super bright single pixels
     # minimum_gray = numpy.amin(numpy_array)
     # maximum_gray = numpy.amax(numpy_array)
     # mean_gray = numpy.mean(numpy_array)
