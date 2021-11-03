@@ -1,11 +1,11 @@
 '''
 
-Opens tiffs, enhances them by stretching the histogram to 255 and then merges channels to multi-color images.
+Opens tiffs, enhances them by stretching the histogram to 255 and then runs a Gaussian blur.
 
-Sarah Schweighofer, May 2021, Göttingen, Max Planck Institute for Biophysical Chemistry
+Sarah V. Schweighofer, May 2021, Göttingen, Max Planck Institute for Biophysical Chemistry
 '''
 
-
+from utils import *  # need the utils.py file which has auxiliary funcs
 import tkinter as tk
 from tkinter import simpledialog
 from tkinter import filedialog
@@ -21,7 +21,12 @@ def main():
 
     # prints out the number of files in the selected folder with the .tiff file format
     file_format = ".tiff"
-    filenames = [filename for filename in sorted(os.listdir(root_path)) if filename.endswith(file_format)]
+    file_list = []
+    # spaziert durch alle Subdirectories und sucht sich alle Files und packt sie in ne neue Liste, die ich oben neu kreiert habe
+    for root, dirs, files in os.walk(root_path):
+        for name in files:
+            file_list.append(os.path.join(root, name))
+    filenames = [filename for filename in file_list if filename.endswith(file_format)]
     print("There are {} files with this format.".format(len(filenames)))
     if not filenames:  # pythonic for if a list is empty
         print("There are no files with this format.")
@@ -41,15 +46,16 @@ def main():
     for filename in filenames:
         if channel1 in filename:
             im_array1 = open_tiff_image_to_np_array(root_path, filename)
-            im1_enhanced = enhance_contrast(im_array1)
+            im1_enhanced, percentile = enhance_contrast(im_array1)
 
             # save the contrast enhanced images
-            save_array_with_pillow(im1_enhanced, result_path, filename[:-4] + "_contr-enh.tiff")
+            save_array_with_pillow(im1_enhanced, result_path, filename[:-4] + "_enh" + str(percentile) + ".tiff")
 
             # Gaussian blur
+            im1_enhanced = im1_enhanced.astype(numpy.uint8)
             denoised_image = ndimage.gaussian_filter(im1_enhanced, sigma=2)
             # save the contrast enhanced and Guassian blurred images
-            save_array_with_pillow(denoised_image, result_path, filename[:-4] + "_contr-enh_Gauss2.tiff")
+            save_array_with_pillow(denoised_image, result_path, filename[:-4] + "_enh" + str(percentile) + "_Gauss2.tiff")
 
 
 def open_tiff_image_to_np_array(root_path, filename):
@@ -70,23 +76,6 @@ def save_array_with_pillow(array, result_path, filename):
     img = Image.fromarray(eight_bit_array)
     img.save(output_file, format='tiff')
 
-
-def enhance_contrast(numpy_array):
-    # Enhance contrast by stretching the histogram over the full range of 8-bit grayvalues
-    # takes the upper 0.2 % of pixels as the highest value, cause sometimes there are super bright single pixels
-    upper2 = numpy.percentile(numpy_array, 99.8)
-    print("0.2% of all the pixels have a value higher than {}".format(str(upper2)))
-    thresh = 255
-    factor = thresh/upper2
-    # factor = thresh / upper2 * 1.5  # used for Bax channel, as the rings are sometimes dimmer compared to the superbright dots.
-    print("The enhancement factor is: {}".format(str(factor)))
-    enhanced_contrast = numpy_array * factor
-
-    # Now the whole array has been multiplied in order to be nicely distributed over an 8-bit range (0-255)
-    # however, some pixels will be above the threshold, and these need to be set to 255, otherwise weird artefacts can occur
-    enhanced_contrast[enhanced_contrast > 255] = 255  # ich suche mir die Pixel im Array, die über dem Threshold liegen und setze die Intensitäten an diesen Stellen auf 255
-    enhanced_contrast[enhanced_contrast <= factor] = 0 # ich suche mir die Pixel im Array, die unter oder gleich dem Faktor liegen und setze die Intensitäten an diesen Stellen auf 0, weil die waren vorher 1
-    return enhanced_contrast
 
 
 if __name__ == '__main__':
