@@ -36,3 +36,14 @@ def enhance_contrast(numpy_array):
     enhanced_contrast[enhanced_contrast <= factor] = 0  # ich suche mir die Pixel im Array, die unter oder gleich dem Faktor liegen und setze die Intensitäten an diesen Stellen auf 0, weil die waren vorher 1
     return enhanced_contrast, percentile
 
+
+def enhance_contrast_fixed(numpy_array, factor):
+    '''
+    :param numpy_array: takes a numpy array as input
+    :param factor: takes a predefined factor from user as input
+    :return: the multiplied numpy array with the factor. eg factor 2 > double as bright
+    '''
+    enhanced_contrast = numpy_array * factor
+    enhanced_contrast[enhanced_contrast > 255] = 255  # ich suche mir die Pixel im Array, die über dem Threshold liegen (evaluiert zu True oder False) und setze die Intensitäten an diesen Stellen auf 255
+    #enhanced_contrast[enhanced_contrast <= factor] = 0  # ich suche mir die Pixel im Array, die unter oder gleich dem Faktor liegen und setze die Intensitäten an diesen Stellen auf 0, weil die waren vorher 1
+    return enhanced_contrast

@@ -29,12 +29,16 @@ def main():
     # let the user choose the folder containing the images to be converted
     root_path = filedialog.askdirectory()  # prompts user to choose directory. From tkinter
 
-    # prints out the number of files in the selected folder with the .obf file format
-    file_format = ".obf"  # use msr-to-tif_Jan-opener for .msr fileformat
-    filenames = [filename for filename in sorted(os.listdir(root_path)) if filename.endswith(file_format)]
+    file_format = ".obf"
+    file_list = []
+    # spaziert durch alle Subdirectories und sucht sich alle Files und packt sie in ne neue Liste, die ich oben neu kreiert habe
+    for root, dirs, files in os.walk(root_path):
+        for name in files:
+            file_list.append(os.path.join(root, name))
+    filenames = [filename for filename in file_list if filename.endswith(file_format)]
     print("There are {} files with this format.".format(len(filenames)))
     if not filenames:  # pythonic for if a list is empty
-        print("There are no files with this format.")
+        print("There are no files with this format.")  ##TODO:does not save into "tif" directory > why? the prolem lies in the save function, because outpute file tries to join two different filepaths, so Python overrules the "result-path" one
 
     # ask user which what part in the name we are looking for:
     # namepart = input("Please enter the namepart you are looking for - case-sensitive (eg STED, Confocal..). If all stacks are wanted press enter: ")
@@ -69,14 +73,14 @@ def main():
             a[a > 255] = 255
             save_array_with_pillow(a, result_path, filename, stackname)
 
-            # #save the contrast enhanced images - ACTIVATE IF WANTED!!
-            # enhanced_contrast, percentile = enhance_contrast(array)
-            # save_array_with_pillow(enhanced_contrast, result_path, filename, stackname + "-enh" + str(percentile))
-            # #
-            # #save an image which was just contrast enhanced by multiplying with 2
-            # if "Bax" in stackname:
-            #     contrast_x = array * 2.5
-            #     save_array_with_pillow(contrast_x, result_path, filename, stackname + "contrx2,5")
+            #save the contrast enhanced images - ACTIVATE IF WANTED!!
+            enhanced_contrast, percentile = enhance_contrast(array)
+            save_array_with_pillow(enhanced_contrast, result_path, filename, stackname + "-enh" + str(percentile))
+            #
+            #save an image which was just contrast enhanced by multiplying with 2
+            if "Bax" in stackname:
+                contrast_x = array * 2.5
+                save_array_with_pillow(contrast_x, result_path, filename, stackname + "contrx2,5")
 
 
 def save_array_with_pillow(array, result_path, filename, stackname):  ##TODO: add pixel size in metadata, so that when you open it in imageJ, it knows it automatically
