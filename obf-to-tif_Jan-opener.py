@@ -29,16 +29,13 @@ def main():
     # let the user choose the folder containing the images to be converted
     root_path = filedialog.askdirectory()  # prompts user to choose directory. From tkinter
 
+    # prints out the number of files in the selected folder with the .obf file format
     file_format = ".obf"
-    file_list = []
-    # spaziert durch alle Subdirectories und sucht sich alle Files und packt sie in ne neue Liste, die ich oben neu kreiert habe
-    for root, dirs, files in os.walk(root_path):
-        for name in files:
-            file_list.append(os.path.join(root, name))
-    filenames = [filename for filename in file_list if filename.endswith(file_format)]
+    filenames = [filename for filename in sorted(os.listdir(root_path)) if filename.endswith(file_format)]
     print("There are {} files with this format.".format(len(filenames)))
     if not filenames:  # pythonic for if a list is empty
-        print("There are no files with this format.")  ##TODO:does not save into "tif" directory > why? the prolem lies in the save function, because outpute file tries to join two different filepaths, so Python overrules the "result-path" one
+        print("There are no files with this format.")
+
 
     # ask user which what part in the name we are looking for:
     # namepart = input("Please enter the namepart you are looking for - case-sensitive (eg STED, Confocal..). If all stacks are wanted press enter: ")

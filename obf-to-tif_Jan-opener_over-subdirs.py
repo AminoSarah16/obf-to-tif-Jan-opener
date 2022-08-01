@@ -82,8 +82,8 @@ def main():
                 save_array_with_pillow(a, result_path, filename, stackname)
 
                 # #save the contrast enhanced images with percentile and sqr root enhancement (see utils) - ACTIVATE IF WANTED!!
-                # enhanced_contrast, percentile = enhance_contrast(array)
-                # save_array_with_pillow(enhanced_contrast, result_path, filename, stackname + "-enh" + str(percentile))
+                enhanced_contrast, percentile = enhance_contrast(array)
+                save_array_with_pillow(enhanced_contrast, result_path, filename, stackname + "-enh" + str(percentile))
 
                 #save contrast enhanced images with fixed value enhancement (eg. for cytC normalized to untreated cells etc) - ACTIVATE IF WANTED!!
                 factor = 2 #change the wanted factor here!

@@ -12,13 +12,13 @@ from tkinter import filedialog
 import os
 import numpy
 from PIL import Image
-
+from utils import *  # need the utils.py file which has auxiliary funcs
 
 def main():
     # let the user choose the folder containing the images to be converted
     root_path = filedialog.askdirectory()  # prompts user to choose directory. From tkinter
 
-    # prints out the number of files in the selected folder with the .obf file format
+    # prints out the number of files in the selected folder with the file format
     file_format = ".tiff"
     filenames = [filename for filename in sorted(os.listdir(root_path)) if filename.endswith(file_format)]
     print("There are {} files with this format.".format(len(filenames)))
@@ -29,7 +29,7 @@ def main():
     ROOT = tk.Tk() # no idea what this does but is needed for the prompt to work
     ROOT.withdraw() # no idea what this does but is needed for the prompt to work
     namepart1 = simpledialog.askstring(title="channel1", prompt="Please enter the namepart you are looking for - best: copy-paste (eg Bax.STED_):") #"BaK.STEDcontr-enh"
-    REPLACE, WITH = simpledialog.askstring(title="channel1", prompt="Please enter the namepart to 1) replace 2) with as 2 separate strings - best: copy-paste (eg Bax, Tom..):").split() #"BaK Bax"
+    REPLACE, WITH = simpledialog.askstring(title="channel1", prompt="Please enter the namepart to 1) replace 2) with as 2 separate strings - best: copy-paste eg (Bax Tom):").split() #"BaK Bax"
 
     # ask user which what part in the name we are looking for:
     # merge1, merge2 = input("Please enter the 2 nameparts you are looking for - case-sensitive (eg STED, Confocal..). ").split()
@@ -39,9 +39,10 @@ def main():
 
     # go through the list of files
     for filename in filenames:
+        print(filename)
         if namepart1 in filename:
             im_array1 = open_tiff_image_to_np_array(root_path, filename)
-            im1_enhanced = enhance_contrast(im_array1)
+            im1_enhanced, percentile = enhance_contrast(im_array1)
 
             # save the contrast enhanced images
             save_array_with_pillow(im1_enhanced, result_path, filename[:-4] + "_contr-enh.tiff")
@@ -52,8 +53,8 @@ def main():
             im2_enhanced = enhance_contrast(im_array2)
 
             # save the contrast enhanced images
-            save_array_with_pillow(im2_enhanced, result_path, filename2[:-4] + "_contr-enh.tiff")
-
+            # save_array_with_pillow(im2_enhanced, result_path, filename2[:-4] + "_contr-enh.tiff")
+            save_array_with_pillow(im2_enhanced, result_path, filename[:-4] + "_enh" + str(percentile) + ".tiff")
             ## TODO: merge. do the merging in imgeJ for now. (separate macro) can opencv or so also make multipage tiffs?
 
 
@@ -76,21 +77,21 @@ def save_array_with_pillow(array, result_path, filename):
     img.save(output_file, format='tiff')
 
 
-def enhance_contrast(numpy_array):
-    # Enhance contrast by stretching the histogram over the full range of 8-bit grayvalues
-    # takes the upper 0.2 % of pixels as the highest value, cause sometimes there are super bright single pixels
-    upper2 = numpy.percentile(numpy_array, 99.8)
-    print("0.2% of all the pixels have a value higher than {}".format(str(upper2)))
-    thresh = 255
-    factor = thresh/upper2
-    print("The enhancement factor is: {}".format(str(factor)))
-    enhanced_contrast = numpy_array * factor
-
-    # Now the whole array has been multiplied in order to be nicely distributed over an 8-bit range (0-255)
-    # however, some pixels will be above the threshold, and these need to be set to 255, otherwise weird artefacts can occur
-    enhanced_contrast[enhanced_contrast > 255] = 255  # ich suche mir die Pixel im Array, die über dem Threshold liegen und setze die Intensitäten an diesen Stellen auf 255
-    enhanced_contrast[enhanced_contrast <= factor] = 0 # ich suche mir die Pixel im Array, die unter oder gleich dem Faktor liegen und setze die Intensitäten an diesen Stellen auf 0, weil die waren vorher 1
-    return enhanced_contrast
+# def enhance_contrast(numpy_array):
+#     # Enhance contrast by stretching the histogram over the full range of 8-bit grayvalues
+#     # takes the upper 0.2 % of pixels as the highest value, cause sometimes there are super bright single pixels
+#     upper2 = numpy.percentile(numpy_array, 99.8)
+#     print("0.2% of all the pixels have a value higher than {}".format(str(upper2)))
+#     thresh = 255
+#     factor = thresh/upper2
+#     print("The enhancement factor is: {}".format(str(factor)))
+#     enhanced_contrast = numpy_array * factor
+#
+#     # Now the whole array has been multiplied in order to be nicely distributed over an 8-bit range (0-255)
+#     # however, some pixels will be above the threshold, and these need to be set to 255, otherwise weird artefacts can occur
+#     enhanced_contrast[enhanced_contrast > 255] = 255  # ich suche mir die Pixel im Array, die über dem Threshold liegen und setze die Intensitäten an diesen Stellen auf 255
+#     enhanced_contrast[enhanced_contrast <= factor] = 0 # ich suche mir die Pixel im Array, die unter oder gleich dem Faktor liegen und setze die Intensitäten an diesen Stellen auf 0, weil die waren vorher 1
+#     return enhanced_contrast
 
 
 if __name__ == '__main__':
