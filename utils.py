@@ -1,4 +1,11 @@
 import numpy
+import obf_support
+from tkinter import filedialog
+import os
+from PIL import Image
+from skimage import io
+import matplotlib.pyplot as plt
+import tifffile
 
 def enhance_contrast(numpy_array):
     '''
